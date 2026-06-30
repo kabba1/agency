@@ -56,6 +56,24 @@ button:disabled {
   filter: saturate(0.5);
 }
 
+input {
+  min-height: 38px;
+  min-width: 220px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  padding: 0 11px;
+  color: var(--ink);
+  background: rgba(6, 10, 10, 0.58);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+input:focus {
+  border-color: rgba(147, 230, 169, 0.62);
+  box-shadow: 0 0 0 2px rgba(147, 230, 169, 0.14);
+}
+
 #world {
   display: block;
   width: 100%;
@@ -383,6 +401,7 @@ button:disabled {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .top-actions button:not(:first-child),
@@ -5940,6 +5959,11 @@ body[data-camera-mode="free"] #center-dot {
     flex: 1;
     min-width: 0;
     padding-inline: 8px;
+  }
+
+  .top-actions input {
+    width: 100%;
+    min-width: 0;
   }
 
   .roster-panel,

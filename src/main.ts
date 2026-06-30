@@ -4,6 +4,9 @@ import { DEFAULT_FLAT_WORLD_OPTIONS } from "./world/FlatWorldGenerator";
 import type { AgentSummary, SemanticObjectState, SimAgent } from "./agents/AgentSimulation";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#world");
+const walletAddressInput = document.querySelector<HTMLInputElement>("#wallet-address");
+const connectWallet = document.querySelector<HTMLButtonElement>("#connect-wallet");
+const mockPurchase = document.querySelector<HTMLButtonElement>("#mock-purchase");
 const spawnAgent = document.querySelector<HTMLButtonElement>("#spawn-agent");
 const spawnAgentEmpty = document.querySelector<HTMLButtonElement>("#spawn-agent-empty");
 const previousAgent = document.querySelector<HTMLButtonElement>("#previous-agent");
@@ -23,6 +26,9 @@ const agentWorldLabels = document.querySelector<HTMLElement>("#agent-world-label
 
 if (
   !canvas ||
+  !walletAddressInput ||
+  !connectWallet ||
+  !mockPurchase ||
   !spawnAgent ||
   !spawnAgentEmpty ||
   !previousAgent ||
@@ -65,6 +71,74 @@ const initials = (name: string) =>
     .toUpperCase();
 const memoryKindLabel = (kind: SimAgent["memories"][number]["kind"]) =>
   ({ observation: "Seen", event: "Event", plan: "Plan", reflection: "Thought" })[kind];
+
+const apiBaseUrl = (import.meta.env.VITE_AGENCY_API_URL as string | undefined) ?? "http://127.0.0.1:8787";
+const adminToken = (import.meta.env.VITE_AGENCY_ADMIN_TOKEN as string | undefined) ?? "agency-dev-admin";
+let walletSessionToken = localStorage.getItem("agency.walletSession");
+const apiSpawnedKeys = new Set<string>();
+
+type ApiAgentView = {
+  id: string;
+  name: string;
+  walletLabel: string;
+  publicProfile: {
+    renderSeedInput?: {
+      chainId?: string;
+      walletAddress: string;
+      tokenMint?: string;
+      txHash?: string;
+      logIndex?: number;
+      slot?: number;
+      purchaseOrdinal?: number;
+      seasonId?: string;
+      publicGenesisSalt?: string;
+    };
+  };
+  ownerPrivate?: {
+    walletAddress?: string;
+    purchase?: {
+      chainId?: string;
+      walletAddress: string;
+      tokenMint?: string;
+      txSignature?: string;
+      logIndex?: number;
+      slot?: number;
+    };
+  };
+};
+
+const apiHeaders = (extra: Record<string, string> = {}) => ({
+  "content-type": "application/json",
+  ...(walletSessionToken ? { authorization: `Bearer ${walletSessionToken}` } : {}),
+  ...extra
+});
+
+const fetchJson = async <T>(path: string, init: RequestInit = {}) => {
+  const response = await fetch(`${apiBaseUrl}${path}`, init);
+  if (!response.ok) throw new Error(await response.text());
+  return (await response.json()) as T;
+};
+
+const spawnApiAgentIntoViewer = (agent: ApiAgentView) => {
+  if (apiSpawnedKeys.has(agent.id)) return null;
+  const privatePurchase = agent.ownerPrivate?.purchase;
+  const publicSeed = agent.publicProfile.renderSeedInput;
+  const seedInput = privatePurchase
+    ? {
+        chainId: privatePurchase.chainId,
+        walletAddress: privatePurchase.walletAddress,
+        tokenMint: privatePurchase.tokenMint,
+        txHash: privatePurchase.txSignature,
+        logIndex: privatePurchase.logIndex,
+        slot: privatePurchase.slot,
+        seasonId: "genesis",
+        publicGenesisSalt: "agency-owner-render"
+      }
+    : publicSeed;
+  if (!seedInput) return null;
+  apiSpawnedKeys.add(agent.id);
+  return app.spawnAgentFromSeed(seedInput);
+};
 
 const renderMeter = (label: string, value: number, tone: "good" | "warn" | "danger" = "good") => `
   <div class="meter ${tone}">
@@ -1766,11 +1840,105 @@ app.setRenderDistance(128);
 renderAgents(app.getAgentSummary(), app.getViewState());
 app.start();
 
+const updateWalletUi = () => {
+  connectWallet.textContent = walletSessionToken ? "Wallet On" : "Dev Wallet";
+};
+
+const bootstrapFromApi = async () => {
+  try {
+    const state = await fetchJson<{ agents: ApiAgentView[]; events: Array<{ text: string }> }>("/api/world/bootstrap", {
+      headers: apiHeaders()
+    });
+    for (const agent of state.agents) spawnApiAgentIntoViewer(agent);
+    if (state.agents.length > 0) worldStats.textContent = `Loaded ${state.agents.length} launch-linked agent${state.agents.length === 1 ? "" : "s"} from Agency API.`;
+  } catch {
+    worldStats.textContent = "Agency API is offline; local spectator mode is running.";
+  }
+};
+
+const connectDevWallet = async () => {
+  const walletAddress = walletAddressInput.value.trim();
+  if (!walletAddress) return;
+  connectWallet.disabled = true;
+  try {
+    const nonce = await fetchJson<{ nonce: string; message: string; expiresAt: number }>("/api/auth/nonce", {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({ walletAddress })
+    });
+    const session = await fetchJson<{ token: string; walletAddress: string; expiresAt: number }>("/api/auth/verify", {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({ walletAddress, nonce: nonce.nonce, signature: `dev:${nonce.nonce}` })
+    });
+    walletSessionToken = session.token;
+    localStorage.setItem("agency.walletSession", walletSessionToken);
+    updateWalletUi();
+    worldStats.textContent = `Dev wallet connected: ${walletLabel(session.walletAddress)}.`;
+    await bootstrapFromApi();
+  } catch (error) {
+    worldStats.textContent = `Wallet login failed: ${error instanceof Error ? error.message.slice(0, 120) : "unknown error"}`;
+  } finally {
+    connectWallet.disabled = false;
+  }
+};
+
+const spawnMockPurchase = async () => {
+  const walletAddress = walletAddressInput.value.trim();
+  if (!walletAddress) return;
+  mockPurchase.disabled = true;
+  try {
+    const response = await fetchJson<{
+      event: {
+        chainId: string;
+        walletAddress: string;
+        tokenMint: string;
+        txSignature: string;
+        logIndex: number;
+        slot: number;
+      };
+      result: { agentCreated: boolean; agentId?: string; duplicate: boolean; reason: string };
+      state: { agents: ApiAgentView[] };
+    }>("/api/admin/mock-purchase", {
+      method: "POST",
+      headers: apiHeaders({ "x-admin-token": adminToken }),
+      body: JSON.stringify({ walletAddress, tokenMint: "agency-dev-mint", tokenAmountDelta: 1 })
+    });
+    if (response.result.agentCreated) {
+      const apiAgent = response.state.agents.find((agent) => agent.id === response.result.agentId);
+      if (apiAgent) {
+        spawnApiAgentIntoViewer(apiAgent);
+      } else if (response.result.agentId && !apiSpawnedKeys.has(response.result.agentId)) {
+        apiSpawnedKeys.add(response.result.agentId);
+        app.spawnAgentFromSeed({
+          chainId: response.event.chainId,
+          walletAddress: response.event.walletAddress,
+          tokenMint: response.event.tokenMint,
+          txHash: response.event.txSignature,
+          logIndex: response.event.logIndex,
+          slot: response.event.slot,
+          seasonId: "genesis",
+          publicGenesisSalt: "agency-api-event"
+        });
+      }
+    }
+    worldStats.textContent = response.result.reason;
+  } catch (error) {
+    worldStats.textContent = `Mock purchase failed: ${error instanceof Error ? error.message.slice(0, 120) : "unknown error"}`;
+  } finally {
+    mockPurchase.disabled = false;
+  }
+};
+
 const spawn = () => {
   const agent = app.spawnAgent();
   if (!agent) return;
 };
 
+updateWalletUi();
+void bootstrapFromApi();
+connectWallet.addEventListener("click", () => void connectDevWallet());
+mockPurchase.addEventListener("click", () => void spawnMockPurchase());
 spawnAgent.addEventListener("click", spawn);
 spawnAgentEmpty.addEventListener("click", spawn);
 previousAgent.addEventListener("click", () => app.selectNextAgent(-1));

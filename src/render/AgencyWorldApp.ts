@@ -22,6 +22,7 @@ import {
   type SimAgent,
   type WeatherState
 } from "../agents/AgentSimulation";
+import type { SpawnSeedInput } from "../agents/SpawnSystem";
 import { clamp, SIM_MINUTES_PER_SECOND } from "../agents/SimulationPrimitives";
 import type { CityMapMetadata, FlatWorldOptions, StructureMetadata, WorldGenerationConfig } from "../shared/types";
 
@@ -417,6 +418,20 @@ export class AgencyWorldApp {
     this.dioramaLayer.update(summary, this.clock.elapsedTime);
     this.options.onAgentStatus(summary, this.getViewState());
     this.options.onStats(`${agent.name} spawned. ${summary.agents.length} agent(s) active.`);
+    this.updateDebugState();
+    return agent;
+  }
+
+  spawnAgentFromSeed(input: SpawnSeedInput) {
+    if (!this.world) return null;
+    const agent = this.agentSimulation.spawnFromSeed(input, this.world.structures.all(), this.spawnPositionForNewAgent(), (from, to) => this.findAgentPath(from, to));
+    this.selectedAgentId = agent.id;
+    this.setCameraMode("spectate");
+    const summary = this.agentSimulation.summary();
+    this.syncAgentMeshes(summary);
+    this.dioramaLayer.update(summary, this.clock.elapsedTime);
+    this.options.onAgentStatus(summary, this.getViewState());
+    this.options.onStats(`${agent.name} spawned from ${agent.walletAddress}. ${summary.agents.length} agent(s) active.`);
     this.updateDebugState();
     return agent;
   }

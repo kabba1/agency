@@ -6,7 +6,7 @@ import { CityPulseSystem, type CityPulse } from "./CityPulseSystem";
 import { MemorySystem, type MemoryWriteContext } from "./MemorySystem";
 import { ObjectStateSystem } from "./ObjectStateSystem";
 import { RelationshipSystem, type RelationshipRuntimeContext } from "./RelationshipSystem";
-import { SpawnSystem } from "./SpawnSystem";
+import { SpawnSystem, type SpawnSeedInput } from "./SpawnSystem";
 import { ACTION_EVENT_LABELS, PHASE_LABELS, SIM_MINUTES_PER_SECOND, clamp, formatTime, hashText, phaseForMinutes, randomFromHash, worldPoint } from "./SimulationPrimitives";
 
 const HEALTH_CRISIS_THRESHOLD = 9;
@@ -895,6 +895,22 @@ export class AgentSimulation {
     this.addMemory(agent, "observation", `${agent.name} entered Genesis District at ${this.worldTime}.`, 7, ["arrival", "city"]);
     this.addMemory(agent, "plan", `Today's loose plan: ${agent.dayPlan.join(", ")}.`, 5, ["plan", "routine"]);
     this.log(agent, `${agent.name} moved into Genesis District with ${agent.money} credits.`, "arrival", "neutral", 7);
+    this.refreshAspiration(agent);
+    this.updateCommitments(agent);
+    this.refreshWantsAndFears(agent);
+    this.refreshLifeAdmin(agent);
+    this.chooseNextTarget(agent, structures, routeResolver);
+    this.refreshCityPulse();
+    return agent;
+  }
+
+  spawnFromSeed(input: SpawnSeedInput, structures: StructureMetadata[], startOverride?: AgentPoint, routeResolver?: AgentRouteResolver) {
+    const agent = this.spawns.spawnFromSeed(input, structures, startOverride, this.currentDay);
+    this.agents.set(agent.id, agent);
+    this.recordFinance(agent, agent.money, "income", "Starting credits", "income");
+    this.addMemory(agent, "observation", `${agent.name} entered Genesis District from a qualifying purchase at ${this.worldTime}.`, 8, ["arrival", "purchase", "city"]);
+    this.addMemory(agent, "plan", `Today's loose plan: ${agent.dayPlan.join(", ")}.`, 5, ["plan", "routine"]);
+    this.log(agent, `${agent.name} was born from ${agent.walletAddress} and moved into Genesis District.`, "arrival", "good", 8);
     this.refreshAspiration(agent);
     this.updateCommitments(agent);
     this.refreshWantsAndFears(agent);

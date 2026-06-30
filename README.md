@@ -24,7 +24,17 @@ Useful checks:
 ```bash
 npm run typecheck
 npm run build
+npm run api:smoke
 ```
+
+Launch harness:
+
+```bash
+npm run dev:api
+npm run dev
+```
+
+The API runs at `http://127.0.0.1:8787` by default. The viewer still runs at `http://127.0.0.1:5173/`.
 
 ## Current App
 
@@ -113,6 +123,8 @@ Buildings sit directly on the terrain surface, while interiors keep semantic fur
 ## Controls
 
 - `Spawn Agent` starts the sim and follows the new agent.
+- `Dev Wallet` creates a local signed-nonce wallet session against the Agency API.
+- `Mock Buy` sends a mock backend purchase event; a qualifying first purchase creates a wallet-linked agent.
 - `Prev` / `Next` or `Q` / `E` switches the spectated agent.
 - `F` or `Free Cam` toggles the development free camera.
 - In free camera, click the world to mouse-look, `WASD` moves, `Space` rises, `Shift` lowers, and `Esc` releases mouse lock.
@@ -121,6 +133,11 @@ Block editing is disabled in the main app.
 
 ## Project Layout
 
+- `apps/api/` is the launch API scaffold: health checks, wallet nonce sessions, admin mock purchases, pause controls, snapshot export, and WebSocket broadcast.
+- `packages/shared/` stores launch-facing purchase, snapshot, wallet, event, and public/private agent contracts.
+- `packages/chain/` stores `MockPurchaseIngestor` and the deliberately paused `SolanaPurchaseIngestor` placeholder.
+- `packages/ai/` stores the local-only brain adapter contract and LLM budget simulator.
+- `packages/sim/` stores schema-versioned launch snapshot export/import helpers.
 - `src/main.ts` wires the slim Agency HUD and boots Genesis District.
 - `src/agents/AgentSimulation.ts` is the simulation coordinator: it owns the agent list, world clock, movement loop, and event feed.
 - `src/agents/SpawnSystem.ts` owns deterministic local and seed-based agent genesis.
@@ -134,14 +151,15 @@ Block editing is disabled in the main app.
 
 ## Not In This Pass
 
-- Real wallet login.
+- Production wallet adapter UI.
 - Real token purchase ingestion.
-- Backend API.
-- Database persistence.
+- Production database hosting/backups.
 - AI/LLM decision loops.
 - Creator marketplace.
 - City editor UI.
 - Multiplayer.
+
+The repo now has a local backend/API harness and local persistence for mock purchase-to-agent testing. Real launch still requires the production chain ingestor, production wallet adapter, production database, legal/copy review, and launch rehearsal in `docs/launch/`.
 
 ## Next Work
 
