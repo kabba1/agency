@@ -160,7 +160,8 @@ export class AgentPathfinder {
   }
 
   private compress(cells: WalkCell[]) {
-    return cells.map((cell) => this.toNavPoint(cell));
+    const routeCells = cells.length > 1 ? cells.slice(1) : cells;
+    return routeCells.map((cell) => this.toNavPoint(cell));
   }
 
   private neighbors(cell: WalkCell) {
