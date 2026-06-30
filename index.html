@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2310181d'/%3E%3Ccircle cx='16' cy='12' r='6' fill='%2394e1ad'/%3E%3Cpath d='M7 28c1.2-6 5-9 9-9s7.8 3 9 9z' fill='%23f2d26b'/%3E%3C/svg%3E" />
+    <title>Agency</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="world"></canvas>
+      <div class="hud">
+        <div id="agent-world-labels" class="agent-world-labels" aria-hidden="true"></div>
+
+        <section class="top-bar" aria-label="Agency controls">
+          <div>
+            <strong id="world-title">Agency</strong>
+            <span id="world-stats">Loading Genesis District.</span>
+          </div>
+          <div class="top-actions">
+            <button id="spawn-agent" type="button">Spawn Agent</button>
+            <button id="previous-agent" type="button">Prev</button>
+            <button id="next-agent" type="button">Next</button>
+            <button id="camera-mode" type="button">Free Cam</button>
+          </div>
+        </section>
+
+        <section id="empty-state" class="empty-state" aria-label="Start spectating">
+          <div>
+            <strong>Spawn an agent to start watching the city.</strong>
+            <span>The camera will follow their day in third person.</span>
+          </div>
+          <button id="spawn-agent-empty" type="button">Spawn Agent</button>
+        </section>
+
+        <aside class="spectator-panel" aria-label="Spectated agent">
+          <div id="selected-agent" class="selected-agent"></div>
+        </aside>
+
+        <aside class="roster-panel" aria-label="Active agents">
+          <div class="panel-heading">
+            <strong>Active Agents</strong>
+            <span id="agent-count">0 agents</span>
+          </div>
+          <div id="city-pulse" class="city-pulse"></div>
+          <div id="agent-list" class="agent-list"></div>
+        </aside>
+
+        <aside class="event-panel" aria-label="Recent city events">
+          <strong>City Feed</strong>
+          <ol id="event-list" class="event-list"></ol>
+        </aside>
+
+        <aside class="diagnostics-panel" aria-label="World diagnostics">
+          <strong>World</strong>
+          <span id="diagnostics">Starting.</span>
+        </aside>
+
+        <div id="center-dot" aria-hidden="true"></div>
+        <div id="click-prompt">Click world to look. WASD moves. F toggles fly camera.</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

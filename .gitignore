@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.log
+qa/
+artifacts/
+AGENCY_CODEBASE_FOR_CHATGPT.md
+.env
+.env.*
